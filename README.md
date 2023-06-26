@@ -20,6 +20,24 @@ port=25401
 
 ```groovy
 
+// settings.gradle
+pluginManagement {
+    repositories {
+        maven {
+            url = "https://maven.wagyourtail.xyz/releases"
+        }
+        maven {
+            url = "https://maven.wagyourtail.xyz/snapshots"
+        }
+        mavenCentral()
+    }
+}
+
+// build.gradle
+plugin {
+    id "xyz.wagyourtail.mchotswap" version "1.0.0-SNAPSHOT"
+}
+
 tasks.register("hotswapUpload", UploadToDevServer) {
     inputFile = tasks.remapJar.outputs.files.singleFile
     modid = "modid"
