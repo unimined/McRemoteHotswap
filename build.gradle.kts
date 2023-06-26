@@ -4,7 +4,7 @@ import java.net.URI
 
 plugins {
     kotlin("jvm") version "1.8.21"
-    id("com.github.johnrengelman.shadow") version "7.1.2"
+    id("com.github.johnrengelman.shadow") version "8.0.0"
     `java-gradle-plugin`
     `maven-publish`
 }
