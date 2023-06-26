@@ -28,9 +28,14 @@ repositories {
     gradlePluginPortal()
 }
 
+configurations {
+    create("shadowOnly")
+}
+
 dependencies {
     testImplementation(kotlin("test"))
-    shadow(project(":server"))
+
+    "shadowOnly"(project(":server"))
 }
 
 tasks.withType<JavaCompile> {
@@ -61,7 +66,7 @@ tasks.jar {
 }
 
 tasks.shadowJar {
-    configurations = listOf(project.configurations.shadow.get())
+    configurations = listOf(project.configurations["shadowOnly"])
     archiveClassifier.set("")
 }
 

@@ -3,7 +3,6 @@ import java.net.URI
 plugins {
     id("java")
     id("xyz.wagyourtail.unimined") version "1.0.0-SNAPSHOT"
-    id("com.github.johnrengelman.shadow") version "7.1.2"
     `maven-publish`
 }
 
