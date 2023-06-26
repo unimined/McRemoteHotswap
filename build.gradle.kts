@@ -107,8 +107,6 @@ publishing {
             version = project.version as String
 
             from(components["java"])
-
-            artifact(tasks["shadowJar"]) {}
         }
     }
 }
