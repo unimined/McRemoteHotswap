@@ -1,7 +1,6 @@
-package xyz.wagyourtail.devserver;
+package xyz.wagyourtail.mchotswap.server;
 
 import com.sun.net.httpserver.*;
-import xyz.wagyourtail.devserver.applier.InstrumentationChangeProvider;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,30 +10,44 @@ import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ChangeListener {
-    private final InstrumentationChangeProvider provider = new InstrumentationChangeProvider();
-    private final String apiKey = System.getProperty("DevServerAPIKey", "changeme!");
+    private final xyz.wagyourtail.mchotswap.server.InstrumentationChangeProvider provider = new xyz.wagyourtail.mchotswap.server.InstrumentationChangeProvider();
+    private final Path settingFile = Paths.get("./mchotswap.properties");
+    private final String apiKey;
+    private final int port;
 
-    public ChangeListener() {
+    public ChangeListener() throws IOException {
+        if (Files.exists(settingFile)) {
+            Properties properties = new Properties();
+            try {
+                properties.load(Files.newInputStream(settingFile));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            apiKey = properties.getProperty("apiKey");
+            if (apiKey == null) throw new RuntimeException("apiKey not set in mchotswap.properties");
+            port = Integer.parseInt(properties.getProperty("port", "25401"));
+        } else {
+            Files.write(settingFile, ("apiKey=changeme!\nport=25401").getBytes());
+            apiKey = "changeme!";
+            port = 25401;
+        }
         start();
     }
 
     public void start() {
-        new Thread(this::run, "DevServer ChangeListener").start();
+        new Thread(this::run, "mchotswap ChangeListener").start();
     }
 
     public void run() {
         // start web server
         try {
-            int port = Integer.parseInt(System.getProperty("DevServerPort", "25401"));
             HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
-            System.out.println("[DevServer] ChangeListener started on port " + port);
+            System.out.println("[Remote Hotswap] ChangeListener started on port " + port);
             server.createContext("/", new ChangeListenerHandler(provider));
             server.setExecutor(null);
             server.start();
@@ -44,9 +57,9 @@ public class ChangeListener {
     }
 
     public class ChangeListenerHandler implements HttpHandler {
-        private final InstrumentationChangeProvider provider;
+        private final xyz.wagyourtail.mchotswap.server.InstrumentationChangeProvider provider;
 
-        public ChangeListenerHandler(InstrumentationChangeProvider provider) {
+        public ChangeListenerHandler(xyz.wagyourtail.mchotswap.server.InstrumentationChangeProvider provider) {
             this.provider = provider;
         }
 
@@ -55,7 +68,6 @@ public class ChangeListener {
             Map<String, Object> params = new HashMap<>();
             ChangeListener.parseQuery(exchange.getRequestURI().getQuery(), params);
             String modid = (String) params.get("modid");
-            String apiKey = (String) params.get("apiKey");
 
             if (!exchange.getRequestMethod().equals("POST")) {
                 exchange.sendResponseHeaders(405, 0);
@@ -87,7 +99,7 @@ public class ChangeListener {
             System.out.println("Received change for " + modid);
 
             // create temp file
-            Path tempFile = Files.createTempFile("devserver-" + modid, ".jar");
+            Path tempFile = Files.createTempFile("mchotswap-" + modid, ".jar");
             try (InputStream stream = exchange.getRequestBody()) {
                 Files.copy(stream, tempFile, StandardCopyOption.REPLACE_EXISTING);
             }

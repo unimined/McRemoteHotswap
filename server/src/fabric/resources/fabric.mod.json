@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "remote-hotswap",
+  "version": "${version}",
+
+  "name": "Remote Hotswap",
+  "description": "Remote hot swap or restarting.",
+  "authors": [
+    "Wagyourtail"
+  ],
+  "contact": {
+    "homepage": "https://github.com/wagyourtail/remote-hotswap",
+    "sources": "https://github.com/wagyourtail/remote-hotswap"
+  },
+
+  "license": "CC0-1.0",
+  "icon": "assets/modid/icon.png",
+
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "xyz.wagyourtail.mchotswap.fabric.McHotswapFabric"
+    ]
+  },
+  "mixins": [
+  ],
+
+  "depends": {
+    "fabricloader": ">=0.14.19",
+    "minecraft": ">=1.17",
+    "java": ">=16"
+  }
+}

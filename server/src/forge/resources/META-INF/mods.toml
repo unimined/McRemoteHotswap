@@ -1,0 +1,20 @@
+modLoader="javafml"
+loaderVersion="[15,)"
+issueTrackerURL="https://github.com/wagyourtail/remote-hotswap/issues"
+license = "MPL-2.0"
+
+[[mods]]
+modId = "remote-hotswap"
+version = "${version}"
+displayName = "Remote Hotswap"
+authors = "Wagyourtail"
+description = '''
+    Remote hot swap or restarting.
+'''
+
+[[dependencies.mchotswap]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.13,)"
+ordering="NONE"
+side="BOTH"

@@ -1,4 +1,4 @@
-package xyz.wagyourtail.devserver;
+package xyz.wagyourtail.mchotswap.server;
 
 import java.nio.file.Path;
 import java.util.Iterator;

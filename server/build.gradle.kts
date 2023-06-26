@@ -3,6 +3,7 @@ import java.net.URI
 plugins {
     id("java")
     id("xyz.wagyourtail.unimined") version "1.0.0-SNAPSHOT"
+    id("com.github.johnrengelman.shadow") version "7.1.2"
     `maven-publish`
 }
 
@@ -10,12 +11,12 @@ version = if (project.hasProperty("version_snapshot")) project.properties["versi
 group = project.properties["maven_group"] as String
 
 base {
-    archivesName.set(project.properties["archives_base_name"] as String)
+    archivesName.set(project.properties["archives_base_name"] as String + "mod")
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_16
+    targetCompatibility = JavaVersion.VERSION_16
 }
 
 fun SourceSet.outputOf(sourceSet: SourceSet) {
@@ -36,24 +37,6 @@ sourceSets {
     create("forge") {
         outputOf(main.get())
     }
-}
-
-tasks.register("fabricJar", Jar::class) {
-    from(
-        sourceSets["fabric"].output,
-        sourceSets["main"].output
-    )
-
-    archiveClassifier.set("fabric")
-}
-
-tasks.register("forgeJar", Jar::class) {
-    from(
-        sourceSets["forge"].output,
-        sourceSets["main"].output
-    )
-
-    archiveClassifier.set("forge")
 }
 
 unimined.minecraft {
@@ -101,7 +84,7 @@ unimined.minecraft(sourceSets["forge"]) {
 }
 
 tasks.withType<JavaCompile> {
-    val targetVersion = 8
+    val targetVersion = 16
     if (JavaVersion.current().isJava9Compatible) {
         options.release.set(targetVersion)
     }
@@ -112,7 +95,23 @@ repositories {
 }
 
 dependencies {
-    compileOnly("org.spongepowered:mixin:0.8.5")
+    //bytebuddy
+    implementation("net.bytebuddy:byte-buddy-agent:1.14.5")
+}
+
+
+tasks.jar {
+    from(
+        sourceSets["fabric"].output,
+        sourceSets["forge"].output,
+        sourceSets["main"].output
+    )
+
+    manifest {
+        attributes(
+            "Implementation-Version" to project.version
+        )
+    }
 }
 
 tasks.getByName("processFabricResources") {
@@ -130,37 +129,5 @@ tasks.getByName("processForgeResources") {
 
     filesMatching("META-INF/mods.toml") {
         expand("version" to project.version)
-    }
-}
-
-
-publishing {
-    repositories {
-        maven {
-            name = "WagYourMaven"
-            url = if (project.hasProperty("version_snapshot")) {
-                URI.create("https://maven.wagyourtail.xyz/snapshots/")
-            } else {
-                URI.create("https://maven.wagyourtail.xyz/releases/")
-            }
-            credentials {
-                username = project.findProperty("mvn.user") as String? ?: System.getenv("USERNAME")
-                password = project.findProperty("mvn.key") as String? ?: System.getenv("TOKEN")
-            }
-        }
-    }
-    publications {
-        create<MavenPublication>("maven") {
-            groupId = project.group as String
-            artifactId = project.properties["archives_base_name"] as String? ?: project.name
-            version = project.version as String
-
-            artifact(tasks["fabricJar"]) {
-                classifier = "fabric"
-            }
-            artifact(tasks["forgeJar"]) {
-                classifier = "forge"
-            }
-        }
     }
 }

@@ -1,6 +1,7 @@
 plugins {
     id 'java'
-    id 'xyz.wagyourtail.unimined' // version '1.0.0'
+    id 'xyz.wagyourtail.unimined' version '1.0.0-SNAPSHOT'
+    id 'xyz.wagyourtail.mchotswap'
 }
 
 group 'com.example'
@@ -123,4 +124,10 @@ processForgeResources {
     filesMatching("META-INF/mods.toml") {
         expand "version": project.version
     }
+}
+
+tasks.register("mchotswapUpload", UploadToDevServer) {
+    inputFile = tasks.remapFabricJar.outputs.files.singleFile
+    modid = "modid"
+    dependsOn tasks.remapFabricJar
 }

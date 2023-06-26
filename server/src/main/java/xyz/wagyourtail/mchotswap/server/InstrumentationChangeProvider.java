@@ -1,9 +1,9 @@
-package xyz.wagyourtail.devserver.applier;
+package xyz.wagyourtail.mchotswap.server;
 
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.jetbrains.annotations.Nullable;
-import xyz.wagyourtail.devserver.ChangeListener;
-import xyz.wagyourtail.devserver.LoaderSpecific;
+import xyz.wagyourtail.mchotswap.server.ChangeListener;
+import xyz.wagyourtail.mchotswap.server.LoaderSpecific;
 
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
@@ -13,6 +13,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.ProtectionDomain;
 import java.util.HashMap;
@@ -29,23 +30,31 @@ public class InstrumentationChangeProvider implements ClassFileTransformer {
     private final Map<String, Path> overrides = new HashMap<>();
 
     public InstrumentationChangeProvider() {
-        Instrumentation instrumentation;
-        boolean canRetransform;
+        Instrumentation instrumentation = null;
+        boolean canRetransform = false;
         try {
             ByteBuddyAgent.install();
             instrumentation = ByteBuddyAgent.getInstrumentation();
-            instrumentation.addTransformer(this, true);
             canRetransform = instrumentation.isRetransformClassesSupported();
+            if (canRetransform) {
+                System.out.println("[Remote Hotswap] Adding transformer agent for retransform support");
+                instrumentation.addTransformer(this, true);
+                try {
+                    Class<?> mixinAgent = Class.forName("org.spongepowered.tools.agent.MixinAgent");
+                    System.out.println("[Remote Hotswap] Attempting to apply MixinAgent");
+                    mixinAgent.getMethod("premain", String.class, Instrumentation.class).invoke(null, "", instrumentation);
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
         } catch (Throwable e) {
-            canRetransform = false;
-            instrumentation = null;
+            e.printStackTrace();
         }
         this.instrumentation = instrumentation;
         this.canRetransform = canRetransform;
 
-
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("[DevServer] Attempting to apply changes for mods before shutdown");
+            System.out.println("[Remote Hotswap] Attempting to apply changes for mods before shutdown");
             try {
                 // compile mods list to replace
                 Map<Path, Path> replace = new HashMap<>();
@@ -54,12 +63,14 @@ public class InstrumentationChangeProvider implements ClassFileTransformer {
                     if (path != null) {
                         replace.put(path, entry.getValue());
                     } else {
-                        System.err.println("[DevServer] Failed to find mod " + entry.getKey() + " to apply changes");
+                        System.err.println("[Remote Hotswap] Failed to find mod " + entry.getKey() + " to apply changes");
+                        // add new mod
+                        replace.put(Paths.get("./mods/").resolve(entry.getKey() + "-mchotswap-added-unknown-version.jar"), path);
                     }
                 }
-                // TODO: do in new process to avoid file locks
+                // TODO: do in new process to avoid file locks?
                 for (Map.Entry<Path, Path> entry : replace.entrySet()) {
-                    System.out.println("[DevServer] writing to " + entry.getKey() + " at shutdown");
+                    System.out.println("[Remote Hotswap] writing to " + entry.getKey() + " at shutdown");
                     Files.delete(entry.getKey());
                     Files.move(entry.getValue(), entry.getKey(), StandardCopyOption.REPLACE_EXISTING);
                 }
@@ -85,22 +96,25 @@ public class InstrumentationChangeProvider implements ClassFileTransformer {
     public void applyChanges(String modid, Path newFile) throws MalformedURLException {
         overrides.put(modid, newFile);
         overrideLoader.addOverride(modid, newFile.toUri().toURL());
-        System.out.println("[DevServer] Attempting to apply changes for " + modid + " at runtime");
-        if (!applyChangesRuntime(newFile)) {
-            System.out.println("[DevServer] Failed to apply changes for " + modid + " at runtime, restarting");
+        System.out.println("[Remote Hotswap] Attempting to apply changes for " + modid + " at runtime");
+        if (!applyChangesRuntime(modid, newFile)) {
+            System.out.println("[Remote Hotswap] Failed to apply changes for " + modid + " at runtime, restarting");
             try {
                 restartToApply();
             } catch (Exception e) {
-                System.err.println("[DevServer] Failed to restart server to apply changes");
+                System.err.println("[Remote Hotswap] Failed to restart server to apply changes");
                 e.printStackTrace();
             }
         } else {
-            System.out.println("[DevServer] Successfully applied changes for " + modid + " at runtime");
+            System.out.println("[Remote Hotswap] Successfully applied changes for " + modid + " at runtime");
         }
     }
 
-    public boolean applyChangesRuntime(Path newFile) {
+    public boolean applyChangesRuntime(String modid, Path newFile) {
         if (!canRetransform) return false;
+        if (LoaderSpecific.INSTANCE.getMod(modid) == null) {
+            return false; // can't apply changes to non-loaded mods
+        }
         Set<Class<?>> retransform = new HashSet<>();
         // get all classes in jar
         Set<String> paths;
@@ -111,7 +125,7 @@ public class InstrumentationChangeProvider implements ClassFileTransformer {
             return false;
         }
 
-        System.out.println("[DevServer] searching for classes to retransform");
+        System.out.println("[Remote Hotswap] searching for classes to retransform");
         Class<?>[] all = instrumentation.getAllLoadedClasses();
         System.out.println("found " + all.length + " classes to search through");
         for (Class<?> clazz : all) {
@@ -121,7 +135,7 @@ public class InstrumentationChangeProvider implements ClassFileTransformer {
             }
         }
         try {
-            System.out.println("[DevServer] retransforming " + retransform.size() + " classes");
+            System.out.println("[Remote Hotswap] retransforming " + retransform.size() + " classes");
             instrumentation.retransformClasses(retransform.toArray(new Class[0]));
             return true;
         } catch (Throwable e) {
@@ -131,7 +145,7 @@ public class InstrumentationChangeProvider implements ClassFileTransformer {
     }
 
     public void restartToApply() {
-        System.out.println("[DevServer] Restarting to apply changes");
+        System.out.println("[Remote Hotswap] Restarting to apply changes");
         LoaderSpecific.INSTANCE.restart();
     }
 
